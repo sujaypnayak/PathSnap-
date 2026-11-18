@@ -1,18 +1,44 @@
 
-"""Log-space Viterbi decoder for road-segment map matching."""
+"""Configurable log-space Viterbi decoder for road-segment map matching."""
 
 import numpy as np
 
 
 DISCONNECTED_PENALTY = -20.0
+DEFAULT_EMISSION_WEIGHT = 1.0
+DEFAULT_TRANSITION_WEIGHT = 1.0
 
 
-def decode(candidates_df, probs, road_graph):
+def decode(
+    candidates_df,
+    probs,
+    road_graph,
+    disconnected_penalty=DISCONNECTED_PENALTY,
+    emission_weight=DEFAULT_EMISSION_WEIGHT,
+    transition_weight=DEFAULT_TRANSITION_WEIGHT,
+):
     """
     Find the most likely sequence of road segments.
 
-    Disconnected transitions receive a large finite penalty.
-    Staying on the same arc is always allowed.
+    Parameters
+    ----------
+    candidates_df : pandas.DataFrame
+        Must contain obs_idx and arc_id.
+    probs : array-like
+        One emission probability per candidate row.
+    road_graph : networkx.DiGraph
+        Directed graph whose nodes represent road arcs.
+    disconnected_penalty : float
+        Log-score penalty for disconnected transitions.
+    emission_weight : float
+        Weight applied to log emission probabilities.
+    transition_weight : float
+        Weight applied to log transition scores.
+
+    Returns
+    -------
+    list
+        Most likely sequence of road arc IDs.
     """
 
     required_columns = {"obs_idx", "arc_id"}
@@ -28,6 +54,15 @@ def decode(candidates_df, probs, road_graph):
 
     if candidates_df.empty:
         raise ValueError("No candidate road segments were provided.")
+
+    if not np.isfinite(disconnected_penalty) or disconnected_penalty > 0:
+        raise ValueError("disconnected_penalty must be finite and <= 0.")
+
+    if not np.isfinite(emission_weight) or emission_weight < 0:
+        raise ValueError("emission_weight must be finite and >= 0.")
+
+    if not np.isfinite(transition_weight) or transition_weight < 0:
+        raise ValueError("transition_weight must be finite and >= 0.")
 
     probs = np.asarray(probs, dtype=float).reshape(-1)
 
@@ -67,7 +102,6 @@ def decode(candidates_df, probs, road_graph):
         emissions = emissions / total
         observations.append((arc_ids, emissions))
 
-    # Use a tiny finite floor so zero emissions do not create -inf.
     min_probability = np.finfo(float).tiny
 
     first_arcs, first_emissions = observations[0]
@@ -76,7 +110,7 @@ def decode(candidates_df, probs, road_graph):
 
     dp = (
         np.log(np.full(len(first_arcs), 1.0 / len(first_arcs)))
-        + np.log(first_emissions)
+        + emission_weight * np.log(first_emissions)
     )
 
     backpointers = []
@@ -100,7 +134,6 @@ def decode(candidates_df, probs, road_graph):
 
             for i, previous_arc in enumerate(previous_arcs):
 
-                # Staying on the same arc is always allowed.
                 connected = (
                     previous_arc == current_arc
                     or road_graph.has_edge(previous_arc, current_arc)
@@ -115,12 +148,12 @@ def decode(candidates_df, probs, road_graph):
 
                     transition_score = -np.log(max(1, reachable))
                 else:
-                    transition_score = DISCONNECTED_PENALTY
+                    transition_score = disconnected_penalty
 
                 score = (
                     dp[i]
-                    + transition_score
-                    + log_emissions[j]
+                    + transition_weight * transition_score
+                    + emission_weight * log_emissions[j]
                 )
 
                 if score > best_score:

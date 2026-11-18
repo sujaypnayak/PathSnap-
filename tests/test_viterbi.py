@@ -86,3 +86,121 @@ def test_viterbi_rejects_wrong_probability_count():
 
     with pytest.raises(ValueError, match="exactly one probability"):
         decode(candidates, probabilities, graph)
+
+
+def test_viterbi_accepts_custom_disconnected_penalty():
+    graph = nx.DiGraph()
+    graph.add_edge("A", "B")
+
+    candidates = pd.DataFrame({
+        "obs_idx": [0, 1, 1],
+        "arc_id": ["A", "B", "C"],
+    })
+
+    probabilities = [1.0, 0.2, 0.8]
+
+    result = decode(
+        candidates,
+        probabilities,
+        graph,
+        disconnected_penalty=-0.1,
+    )
+
+    assert result == ["A", "C"]
+
+
+def test_emission_weight_changes_route_selection():
+    graph = nx.DiGraph()
+    graph.add_edge("A", "B")
+
+    candidates = pd.DataFrame({
+        "obs_idx": [0, 1, 1],
+        "arc_id": ["A", "B", "C"],
+    })
+
+    probabilities = [1.0, 0.2, 0.8]
+
+    low_emission_weight = decode(
+        candidates,
+        probabilities,
+        graph,
+        disconnected_penalty=-1.0,
+        emission_weight=0.1,
+    )
+
+    high_emission_weight = decode(
+        candidates,
+        probabilities,
+        graph,
+        disconnected_penalty=-1.0,
+        emission_weight=1.0,
+    )
+
+    assert low_emission_weight == ["A", "B"]
+    assert high_emission_weight == ["A", "C"]
+
+
+def test_transition_weight_changes_route_selection():
+    graph = nx.DiGraph()
+    graph.add_edge("A", "B")
+
+    candidates = pd.DataFrame({
+        "obs_idx": [0, 1, 1],
+        "arc_id": ["A", "B", "C"],
+    })
+
+    probabilities = [1.0, 0.2, 0.8]
+
+    low_transition_weight = decode(
+        candidates,
+        probabilities,
+        graph,
+        disconnected_penalty=-1.0,
+        transition_weight=0.1,
+    )
+
+    high_transition_weight = decode(
+        candidates,
+        probabilities,
+        graph,
+        disconnected_penalty=-1.0,
+        transition_weight=2.0,
+    )
+
+    assert low_transition_weight == ["A", "C"]
+    assert high_transition_weight == ["A", "B"]
+
+
+def test_viterbi_rejects_invalid_parameters():
+    graph = create_toy_graph()
+
+    candidates = pd.DataFrame({
+        "obs_idx": [0],
+        "arc_id": ["A"],
+    })
+
+    probabilities = [1.0]
+
+    with pytest.raises(ValueError):
+        decode(
+            candidates,
+            probabilities,
+            graph,
+            disconnected_penalty=1.0,
+        )
+
+    with pytest.raises(ValueError):
+        decode(
+            candidates,
+            probabilities,
+            graph,
+            emission_weight=-1.0,
+        )
+
+    with pytest.raises(ValueError):
+        decode(
+            candidates,
+            probabilities,
+            graph,
+            transition_weight=-1.0,
+        )
