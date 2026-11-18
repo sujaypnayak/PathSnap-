@@ -1,0 +1,57 @@
+{
+  "method": "Optuna TPE Bayesian optimization",
+  "objective": "grouped validation Top-1 accuracy",
+  "trials": 8,
+  "folds": 3,
+  "max_train_rows_per_fold": 100000,
+  "max_validation_rows_per_fold": 100000,
+  "baseline_params": {
+    "n_estimators": 100,
+    "max_depth": 18,
+    "min_samples_leaf": 3,
+    "max_features": "sqrt",
+    "min_samples_split": 2
+  },
+  "baseline_metrics": {
+    "top1": 0.733604473817997,
+    "macro_f1": 0.8474750430118851,
+    "log_loss": 0.12069522494545598
+  },
+  "baseline_fold_metrics": [
+    {
+      "top1": 0.7796610169491526,
+      "macro_f1": 0.8390258591196484,
+      "log_loss": 0.12307847875077613,
+      "fold": 1,
+      "observations": 8614
+    },
+    {
+      "top1": 0.8286668971079617,
+      "macro_f1": 0.8690926434038198,
+      "log_loss": 0.10627858523669641,
+      "fold": 2,
+      "observations": 8679
+    },
+    {
+      "top1": 0.5400095072096339,
+      "macro_f1": 0.8292785790990548,
+      "log_loss": 0.13726829858723963,
+      "fold": 3,
+      "observations": 6311
+    }
+  ],
+  "best_params": {
+    "n_estimators": 160,
+    "max_depth": 22,
+    "min_samples_leaf": 5,
+    "min_samples_split": 2,
+    "max_features": "sqrt"
+  },
+  "best_trial": 1,
+  "best_metrics": {
+    "top1": 0.734409422131842,
+    "macro_f1": 0.8470507076992607,
+    "log_loss": 0.12580822541712217
+  },
+  "note": "Metrics are from the sampled tuning folds. The best-trial score is used for model selection and is not an independent test estimate. The deployed model is not overwritten."
+}
