@@ -78,7 +78,7 @@ Unavailable feature values are zero-filled.
 
 ## Candidate miss-rate investigation
 
-Miss rate here means the assigned reference-route distance exceeds the search radius. It does not mean that no candidate was generated, because the nearest-road fallback still supplies one.
+Candidate miss rate measures the percentage of observations for which the assigned reference-route arc is absent from the generated candidates within the specified search radius. The nearest-arc fallback is applied when no candidate is found within the radius.
 
 | Radius | Reference-route distance beyond radius |
 |---|---:|
