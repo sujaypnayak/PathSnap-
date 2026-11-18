@@ -1,9 +1,12 @@
+
+"""PathSnap API configuration using project-relative paths."""
+
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-DATASET_ROOT = Path(
-    r"C:\Users\srini\Downloads\Student folder\Student folder"
+DATASET_ROOT = (
+    PROJECT_ROOT / "data" / "raw" / "Student folder"
 )
 
 TRAIN_DATA_DIR = DATASET_ROOT / "train"
