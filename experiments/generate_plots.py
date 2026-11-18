@@ -1,111 +1,75 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
+"""Regenerate recorded PathSnap model-comparison figures.
+
+Run from the repository root:
+    python -m experiments.generate_plots
+"""
 from pathlib import Path
 
-# --- Configuration ---
-# Update this path if your CSV is somewhere else
-CSV_PATH = "experiments/results/comparison_table.csv" 
-OUT_DIR = Path("reports/figures")
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
-# Set a nice visual style
-sns.set_theme(style="whitegrid")
+ROOT = Path(__file__).resolve().parents[1]
+RESULTS = ROOT / "experiments" / "results"
+OUTPUT = ROOT / "reports" / "figures"
+
+
+def plot_bar(df, column, title, ylabel, filename, error_column=None):
+    x = np.arange(len(df))
+    fig, ax = plt.subplots(figsize=(10, 5))
+    errors = df[error_column].to_numpy() if error_column else None
+    ax.bar(x, df[column].to_numpy(), yerr=errors, capsize=4)
+    ax.set_xticks(x, df["model"].astype(str).tolist(), rotation=20, ha="right")
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.grid(axis="y", alpha=0.2)
+    fig.tight_layout()
+    fig.savefig(OUTPUT / filename, dpi=300)
+    plt.close(fig)
+
 
 def main():
-    if not os.path.exists(CSV_PATH):
-        print(f"Error: Could not find {CSV_PATH}. Run your experiments first!")
-        return
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    comparison = pd.read_csv(RESULTS / "comparison_table.csv")
+    comparison = comparison.sort_values("cv_macro_f1_mean", ascending=False)
 
-    df = pd.read_csv(CSV_PATH)
-    
-    # Sort by CV Macro F1 for better visual flow
-    df = df.sort_values("cv_macro_f1_mean", ascending=False)
-
-    # ---------------------------------------------------------
-    # Plot 1: Cross-Validation Macro F1 Comparison
-    # ---------------------------------------------------------
-    plt.figure(figsize=(10, 6))
-    ax = sns.barplot(
-        data=df, 
-        x="model", 
-        y="cv_macro_f1_mean", 
-        palette="viridis", 
-        errorbar=None # We'll add the std dev manually below
+    plot_bar(
+        comparison, "cv_macro_f1_mean",
+        "Grouped Cross-Validation Macro F1 by Model",
+        "CV Macro F1 (mean ± std)", "cv_macro_f1.png",
+        error_column="cv_macro_f1_std",
     )
-    
-    # Add error bars from the standard deviation column
-    for i, row in enumerate(df.itertuples()):
-        plt.errorbar(
-            x=i, y=row.cv_macro_f1_mean, 
-            yerr=row.cv_macro_f1_std, 
-            fmt='none', c='black', capsize=5
-        )
 
-    plt.title("Cross-Validation Macro F1 Score by Model", fontsize=14, pad=15)
-    plt.ylabel("CV Macro F1 (Mean ± Std)", fontsize=12)
-    plt.xlabel("Model", fontsize=12)
-    plt.ylim(0.6, 1.0)
-    plt.tight_layout()
-    plt.savefig(OUT_DIR / "cv_macro_f1.png", dpi=300)
-    plt.close()
-    print("Saved cv_macro_f1.png")
+    # Student-test metrics belong to experiment_log.csv, not comparison_table.csv.
+    log = pd.read_csv(RESULTS / "experiment_log.csv")
+    log = log.dropna(subset=["student_top1", "student_macro_f1", "student_log_loss"])
+    log = log.sort_values("timestamp").drop_duplicates("model", keep="last")
+    log = log.set_index("model").reindex(comparison["model"].tolist())
+    log = log.dropna(subset=["student_top1", "student_macro_f1", "student_log_loss"]).reset_index()
+    if log.empty:
+        raise ValueError("No recorded student-test metrics in experiment_log.csv")
 
-    # ---------------------------------------------------------
-    # Plot 2: Student-Test Top-1 Accuracy vs Macro F1
-    # ---------------------------------------------------------
-    # Melt the dataframe to make it easy for Seaborn to plot grouped bars
-    df_melted = df.melt(
-        id_vars="model", 
-        value_vars=["student_top1", "student_macro_f1"], 
-        var_name="Metric", 
-        value_name="Score"
+    x = np.arange(len(log))
+    fig, ax = plt.subplots(figsize=(10, 5))
+    width = 0.38
+    ax.bar(x - width / 2, log["student_top1"], width, label="Top-1")
+    ax.bar(x + width / 2, log["student_macro_f1"], width, label="Macro F1")
+    ax.set_xticks(x, log["model"], rotation=20, ha="right")
+    ax.set_ylabel("Score")
+    ax.set_title("Student-Test Metrics (Earlier Experiment Protocol)")
+    ax.legend()
+    ax.grid(axis="y", alpha=0.2)
+    fig.tight_layout()
+    fig.savefig(OUTPUT / "student_test_comparison.png", dpi=300)
+    plt.close(fig)
+
+    plot_bar(
+        log, "student_log_loss",
+        "Student-Test Log Loss (Earlier Experiment Protocol)",
+        "Log loss (lower is better)", "log_loss_comparison.png",
     )
-    
-    # Rename the metrics for the legend
-    df_melted['Metric'] = df_melted['Metric'].map({
-        "student_top1": "Top-1 Accuracy",
-        "student_macro_f1": "Macro F1"
-    })
+    print(f"Saved three figures in {OUTPUT}")
 
-    plt.figure(figsize=(12, 6))
-    sns.barplot(
-        data=df_melted, 
-        x="model", 
-        y="Score", 
-        hue="Metric", 
-        palette="mako"
-    )
-    plt.title("Student-Test Performance: Top-1 Accuracy vs Macro F1", fontsize=14, pad=15)
-    plt.ylabel("Score", fontsize=12)
-    plt.xlabel("Model", fontsize=12)
-    plt.ylim(0.6, 1.0)
-    plt.legend(title="Metric", loc="upper right")
-    plt.tight_layout()
-    plt.savefig(OUT_DIR / "student_test_comparison.png", dpi=300)
-    plt.close()
-    print("Saved student_test_comparison.png")
-
-    # ---------------------------------------------------------
-    # Plot 3: Log Loss Comparison
-    # ---------------------------------------------------------
-    plt.figure(figsize=(10, 6))
-    ax = sns.barplot(
-        data=df, 
-        x="model", 
-        y="student_log_loss", 
-        palette="rocket"
-    )
-    plt.title("Student-Test Log Loss by Model (Lower is Better)", fontsize=14, pad=15)
-    plt.ylabel("Log Loss", fontsize=12)
-    plt.xlabel("Model", fontsize=12)
-    plt.tight_layout()
-    plt.savefig(OUT_DIR / "log_loss_comparison.png", dpi=300)
-    plt.close()
-    print("Saved log_loss_comparison.png")
-
-    print(f"\nAll plots successfully saved to {OUT_DIR}/")
 
 if __name__ == "__main__":
     main()
