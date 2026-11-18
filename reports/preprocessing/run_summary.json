@@ -1,31 +1,45 @@
 {
-  "train_trips": 80,
-  "train_candidate_rows": 1885382,
-  "student_test_trips": 10,
-  "student_test_candidate_rows": 209121,
-  "radius_m": 50.0,
-  "feature_columns": [
-    "distance_m",
-    "gps_bearing_deg",
-    "road_bearing_deg",
-    "bearing_diff_deg",
-    "vehicle_speed_mps",
-    "time_diff_s",
-    "stopped_flag",
-    "prev_obs_distance_m",
-    "next_obs_distance_m",
-    "prev_time_diff_s",
-    "next_time_diff_s",
-    "prev_bearing_deg",
-    "next_bearing_deg",
-    "segment_length_m",
-    "candidate_within_radius"
-  ],
-  "random_seed": 42,
-  "source_partitions": {
-    "train": "train/ (80 trips)",
-    "student_test": "student_test/ (10 trips)"
+  "configuration": {
+    "search_radius_m": 50.0,
+    "min_candidates": 5,
+    "max_radius_m": 150.0,
+    "fallback_nearest": true,
+    "feature_columns": [
+      "distance_m",
+      "gps_bearing_deg",
+      "road_bearing_deg",
+      "bearing_diff_deg",
+      "vehicle_speed_mps",
+      "time_diff_s",
+      "stopped_flag",
+      "prev_obs_distance_m",
+      "next_obs_distance_m",
+      "prev_time_diff_s",
+      "next_time_diff_s",
+      "prev_bearing_deg",
+      "next_bearing_deg",
+      "segment_length_m",
+      "candidate_within_radius"
+    ],
+    "label_policy": "Monotone reference-route alignment; candidate generation does not use labels",
+    "evaluator_data_accessed": false
   },
-  "evaluator_data_accessed": false,
-  "parquet_available": true
+  "train": {
+    "partition": "train",
+    "trips": 80,
+    "observations": 208417,
+    "candidate_rows": 2641015,
+    "avg_candidates": 12.671783011942404,
+    "output": "data\\processed\\train_candidates.parquet",
+    "candidate_hits": 194944,
+    "candidate_recall": 0.9353555612066194
+  },
+  "student_test": {
+    "partition": "student_test",
+    "trips": 10,
+    "observations": 19160,
+    "candidate_rows": 246311,
+    "avg_candidates": 12.855480167014614,
+    "output": "data\\processed\\student_test_candidates.parquet"
+  }
 }

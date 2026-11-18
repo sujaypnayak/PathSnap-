@@ -1,4 +1,8 @@
 {
+  "search_radius_m": 50.0,
+  "min_candidates": 5,
+  "max_radius_m": 150.0,
+  "fallback_nearest": true,
   "feature_columns": [
     "distance_m",
     "gps_bearing_deg",
@@ -16,29 +20,6 @@
     "segment_length_m",
     "candidate_within_radius"
   ],
-  "schema": [
-    "trip_id",
-    "obs_idx",
-    "arc_id",
-    "distance_m",
-    "gps_bearing_deg",
-    "road_bearing_deg",
-    "bearing_diff_deg",
-    "vehicle_speed_mps",
-    "time_diff_s",
-    "stopped_flag",
-    "prev_obs_distance_m",
-    "next_obs_distance_m",
-    "prev_time_diff_s",
-    "next_time_diff_s",
-    "prev_bearing_deg",
-    "next_bearing_deg",
-    "segment_length_m",
-    "candidate_within_radius",
-    "label"
-  ],
-  "search_radius_m": 50.0,
-  "crs_policy": "Per-trip WGS84 to local UTM zone inferred from median GPS location",
-  "random_seed": 42,
-  "label_policy": "Route arc minimizing point distance under monotone route-order assignment; label=1 for matching candidate arc_id"
+  "label_policy": "Monotone reference-route alignment; candidate generation does not use labels",
+  "evaluator_data_accessed": false
 }
