@@ -1,0 +1,167 @@
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #0b1120;
+  color: #f8fafc;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+.navbar {
+  height: 75px;
+  padding: 0 8%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #111c30;
+  border-bottom: 1px solid #263449;
+}
+
+.navbar h2 {
+  color: #38bdf8;
+  font-size: 26px;
+}
+
+.navbar span {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 70px auto;
+  padding: 0 25px;
+}
+
+.hero {
+  margin-bottom: 40px;
+}
+
+.eyebrow {
+  color: #38bdf8;
+  font-size: 12px;
+  letter-spacing: 2px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.hero h1 {
+  font-size: 42px;
+  margin-bottom: 15px;
+}
+
+.hero p {
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.panel {
+  background: #111c30;
+  border: 1px solid #263449;
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 25px;
+}
+
+.panel h2 {
+  margin-bottom: 12px;
+}
+
+.panel > p {
+  color: #94a3b8;
+  margin-bottom: 22px;
+}
+
+select {
+  width: 100%;
+  padding: 14px;
+  background: #0b1120;
+  color: white;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  margin-bottom: 18px;
+  font-size: 15px;
+}
+
+button {
+  padding: 13px 24px;
+  background: #0284c7;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0369a1;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin: 25px 0;
+}
+
+.result-grid div {
+  background: #0b1120;
+  padding: 18px;
+  border-radius: 8px;
+}
+
+.result-grid span {
+  display: block;
+  color: #94a3b8;
+  font-size: 13px;
+  margin-bottom: 9px;
+}
+
+.result-grid strong {
+  font-size: 17px;
+}
+
+.notice {
+  color: #fbbf24;
+  font-size: 14px;
+}
+
+.error {
+  color: #f87171;
+  margin-top: 18px;
+}
+
+footer {
+  text-align: center;
+  padding: 25px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .hero h1 {
+    font-size: 32px;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .navbar {
+    padding: 0 20px;
+  }
+}
