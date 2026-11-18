@@ -1,0 +1,30 @@
+{
+  "feature_cols": [
+    "distance_m",
+    "gps_bearing_deg",
+    "road_bearing_deg",
+    "bearing_diff_deg",
+    "vehicle_speed_mps",
+    "time_diff_s",
+    "stopped_flag",
+    "prev_obs_distance_m",
+    "next_obs_distance_m",
+    "prev_time_diff_s",
+    "next_time_diff_s",
+    "prev_bearing_deg",
+    "next_bearing_deg",
+    "segment_length_m",
+    "candidate_within_radius"
+  ],
+  "target_col": "label",
+  "id_cols": [
+    "trip_id",
+    "obs_idx",
+    "arc_id"
+  ],
+  "crs": {
+    "source_crs": "EPSG:4326",
+    "projection": "local_utm_by_trip_median_location",
+    "policy": "Per-trip WGS84 to local UTM zone inferred from median GPS location"
+  }
+}
