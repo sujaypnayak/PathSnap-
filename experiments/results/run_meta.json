@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-11-18T13:31:07",
+  "seed": 42,
+  "threshold": 0.5,
+  "cv_folds": 5,
+  "feature_cols": [
+    "distance_m",
+    "gps_bearing_deg",
+    "road_bearing_deg",
+    "bearing_diff_deg",
+    "vehicle_speed_mps",
+    "time_diff_s",
+    "stopped_flag",
+    "prev_obs_distance_m",
+    "next_obs_distance_m",
+    "prev_time_diff_s",
+    "next_time_diff_s",
+    "prev_bearing_deg",
+    "next_bearing_deg",
+    "segment_length_m",
+    "candidate_within_radius"
+  ],
+  "n_train_trips": 80,
+  "n_student_trips": 10,
+  "python": "3.13.7",
+  "sklearn": "1.9.1",
+  "candidates_file": "data\\processed\\candidates.parquet",
+  "student_candidates_file": "data\\processed\\candidates_student.parquet",
+  "models_run": [
+    "logreg",
+    "gaussian_nb",
+    "hist_gb",
+    "random_forest",
+    "xgboost"
+  ],
+  "smoke": false
+}
