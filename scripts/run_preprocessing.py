@@ -24,7 +24,7 @@ from folium import FeatureGroup, LayerControl, PolyLine, CircleMarker
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from features.candidates import FEATURE_COLUMNS, build_candidates, prepare_trip, miss_rates
+from features.candidates import FEATURE_COLUMNS, build_candidates, prepare_trip, candidate_miss_rates
 
 DATA_ROOT = ROOT / "data" / "raw" / "Student folder"
 DATA_OUT = ROOT / "data" / "processed"
@@ -103,6 +103,7 @@ def _eda_row(path: Path, geom=None) -> dict:
         "stationary_max_period_s": max(stop_durations, default=0.0),
         "gps_lon_min": float(g.gps.lon.min()), "gps_lon_max": float(g.gps.lon.max()),
         "gps_lat_min": float(g.gps.lat.min()), "gps_lat_max": float(g.gps.lat.max()),
+        "projected_epsg": int(g.transformer.target_crs.to_epsg()),
         "weak_components": comps, "isolated_nodes": isolates,
         "reverse_arc_fraction": float(bidir),
         "route_connected_pairs": connected if is_train else None,
@@ -180,7 +181,7 @@ def _write_partition(paths: list[Path], output: Path, partition: str,
         print(f"{partition}: {path.name}: {len(df):,} candidate rows", flush=True)
         g = prepare_trip(path, include_reference_route=(partition in ("train", "pilot")))
         if partition in ("train", "pilot"):
-            miss_part = miss_rates(g)
+            miss_part = candidate_miss_rates(g)
             for miss_row in miss_part:
                 miss_row["partition"] = partition
             miss_rows.extend(miss_part)
@@ -211,6 +212,7 @@ def run(pilot: int = 0, maps_only: bool = False) -> None:
             "train_trips": 80, "train_candidate_rows": data_rows(train_file),
             "student_test_trips": 10, "student_test_candidate_rows": data_rows(student_file),
             "radius_m": RADIUS_M, "feature_columns": FEATURE_COLUMNS, "random_seed": 42,
+            "sample_epsg_codes": sorted({int(prepare_trip(path, include_reference_route=False).transformer.target_crs.to_epsg()) for path in (train[0], student[0])}),
             "source_partitions": {"train": "train/ (80 trips)", "student_test": "student_test/ (10 trips)"},
             "evaluator_data_accessed": False, "parquet_available": PARQUET_AVAILABLE,
         }
@@ -255,6 +257,7 @@ def run(pilot: int = 0, maps_only: bool = False) -> None:
         "train_trips": nt, "train_candidate_rows": nr,
         "student_test_trips": ns, "student_test_candidate_rows": nsr,
         "radius_m": RADIUS_M, "feature_columns": FEATURE_COLUMNS,
+        "epsg_codes_used": sorted({row["projected_epsg"] for row in eda_rows}),
         "random_seed": 42,
         "source_partitions": {"train": "train/ (80 trips)", "student_test": "student_test/ (10 trips)"},
         "evaluator_data_accessed": False,

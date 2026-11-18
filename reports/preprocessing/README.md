@@ -55,3 +55,54 @@ Both modes use the same metric projection, spatial index, candidate search and f
 - Training candidate miss rates are evaluated against assigned reference arcs at 25, 50, 75, 100 and 150 m.
 
 The completed run generated 1,885,382 training candidate rows and 209,121 student-test candidate rows, using a 50 m radius. The run summary records `evaluator_data_accessed: false`.
+
+## Feature definitions (15 features)
+
+- distance_m: GPS-to-road distance.
+- gps_bearing_deg: GPS movement direction.
+- road_bearing_deg: Candidate road direction.
+- bearing_diff_deg: Difference between GPS and road direction.
+- vehicle_speed_mps: Estimated movement speed in m/s.
+- time_diff_s: Time since previous observation.
+- stopped_flag: 1 when speed is below 1 m/s.
+- prev_obs_distance_m: Candidate road distance to previous GPS observation.
+- next_obs_distance_m: Candidate road distance to next GPS observation.
+- prev_time_diff_s: Time since previous observation; currently same as time_diff_s.
+- next_time_diff_s: Time to next observation.
+- prev_bearing_deg: Previous GPS movement direction.
+- next_bearing_deg: Next GPS movement direction.
+- segment_length_m: Candidate road segment length.
+- candidate_within_radius: 1 if candidate is within 50 m.
+
+Unavailable feature values are zero-filled.
+
+## Candidate miss-rate investigation
+
+Candidate miss rate measures the percentage of observations for which the assigned reference-route arc is absent from the generated candidates within the specified search radius. The nearest-arc fallback is applied when no candidate is found within the radius.
+
+| Search radius | Candidate miss rate |
+|---|---:|
+| 25 m | 12.39% |
+| 50 m | 10.94% |
+| 75 m | 10.18% |
+| 100 m | 9.85% |
+| 150 m | 4.46% |
+
+Trips 00000033 and 00000054 have high miss rates at 50 m. Trip 00000054 has aligned GPS and route bounds and connected route arcs, but large distance errors occur along parts of the trip. The exact cause is not confirmed. The 50 m default is retained based on the completed one-trip candidate-count and processing-time comparison
+
+## Radius benchmark
+
+### Completed one-trip comparison
+
+A completed benchmark on one training trip compared both search radii:
+
+| Search radius | Candidate rows | Processing time |
+|---|---:|---:|
+| 50 m | 15,964 | 5.01 seconds |
+| 150 m | 86,999 | 21.94 seconds |
+
+The 150 m radius generated approximately 5.45 times as many candidates and took approximately 4.4 times longer than the 50 m radius. The 50 m radius remains the default.
+
+### Interrupted five-trip benchmark
+
+A separate benchmark on the first five training trips generated 132,095 candidate rows at 50 m in 36.20 seconds. The 150 m run was interrupted before completion. Therefore, no completed five-trip comparison is available, and no 150 m timing or row count is reported for that experiment.

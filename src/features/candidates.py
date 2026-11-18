@@ -225,13 +225,38 @@ def build_candidates(trip_path: str | Path, search_radius_m: float = 50.0,
     cols = ["trip_id", "obs_idx", "arc_id", *FEATURE_COLUMNS, "label"]
     return pd.DataFrame.from_records(rows, columns=cols)
 
-
-def miss_rates(g: TripGeometry, radii_m: tuple[int, ...] = (25, 50, 75, 100, 150)) -> list[dict[str, Any]]:
+def candidate_miss_rates(
+    g: TripGeometry,
+    radii_m: tuple[int, ...] = (25, 50, 75, 100, 150)
+) -> list[dict[str, Any]]:
+    """Measure whether each assigned reference arc is present in generated candidates."""
     rows = []
-    for radius in radii_m:
-        misses = int(np.count_nonzero(g.label_distance > radius))
-        rows.append({"trip_id": g.trip["trip_id"], "search_radius_m": radius,
-                     "n_observations": len(g.points), "candidate_misses": misses,
-                     "candidate_miss_rate": misses / len(g.points) if len(g.points) else 0.0})
-    return rows
+    arc_ids = g.arcs.arc_id.to_numpy(dtype=np.int64)
 
+    for radius in radii_m:
+        misses = 0
+
+        for i, point in enumerate(g.points):
+            candidates = np.asarray(
+                g.tree.query(point, predicate="dwithin", distance=radius),
+                dtype=np.int64
+            )
+
+            if candidates.size == 0:
+                nearest = g.tree.nearest(point)
+                candidates = np.asarray([nearest], dtype=np.int64)
+
+            candidate_arc_ids = arc_ids[candidates]
+
+            if g.labels[i] not in candidate_arc_ids:
+                misses += 1
+
+        rows.append({
+            "trip_id": g.trip["trip_id"],
+            "search_radius_m": radius,
+            "n_observations": len(g.points),
+            "candidate_misses": misses,
+            "candidate_miss_rate": misses / len(g.points) if len(g.points) else 0.0
+        })
+
+    return rows
