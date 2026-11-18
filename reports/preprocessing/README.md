@@ -93,3 +93,6 @@ Trips 00000033 and 00000054 have high miss rates at 50 m. Trip 00000054 has alig
 ## Radius benchmark
 
 A benchmark on the first 5 training trips produced 132,095 candidate rows at 50 m in 36.20 seconds. The 150 m benchmark was interrupted before completion, so no timing or row-count comparison is claimed. The default remains 50 m; a complete larger-radius benchmark is still pending.
+
+
+A separate completed benchmark on one training trip compared both radii: 50 m produced 15,964 candidates in 5.01 seconds; 150 m produced 86,999 candidates in 21.94 seconds. The larger radius produced about 5.45 times as many candidates and took about 4.4 times longer. The earlier five-trip 150 m benchmark was interrupted, so these one-trip results are reported separately.
