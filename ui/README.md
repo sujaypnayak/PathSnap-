@@ -1,16 +1,42 @@
-# React + Vite
+# PathSnap Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite + React Leaflet interface for the PathSnap GPS map-matching system.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Start the FastAPI backend from the repository root:
 
-## React Compiler
+```powershell
+python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+In a second terminal:
 
-## Expanding the ESLint configuration
+```powershell
+cd ui
+npm ci
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Open http://localhost:5173.
+
+The Vite development proxy forwards `/api/*` to `http://127.0.0.1:8000/*`. Override the backend address using the `API_TARGET` environment variable if needed.
+
+## Features
+
+- Switch between Student Test and Evaluator datasets.
+- Select a trip and run the prediction pipeline.
+- Display GPS observations, predicted road route, start/end markers, and trip status.
+- In Evaluator mode, display server-computed route F1, ordered route F1, and connectivity.
+- Per-GPS-point accuracy is shown as unavailable because verified pointwise labels are not provided.
+
+Raw datasets and the deployed model remain on the backend. The frontend receives prediction geometry and metrics, not reference routes.
+
+## Checks
+
+```powershell
+npm run lint
+npm run build
+```
+
+For dataset layout, backend setup, metrics and experiment details, see the [project README](../README.md).
