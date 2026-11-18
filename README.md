@@ -1,186 +1,161 @@
 # PathSnap
 
-A distributed machine learning system for GPS map matching and route reconstruction using candidate classification, Hidden Markov Models (HMM), and Viterbi decoding.
+GPS map matching and route reconstruction using adaptive road-segment candidates, a RandomForest classifier, and Hidden Markov Model (HMM)/Viterbi sequence decoding.
 
-## 1. Project Overview
+## Overview
 
-PathSnap reconstructs vehicle routes from noisy GPS observations by identifying the most likely road segments travelled.
+PathSnap processes noisy GPS observations against a directed road network. It (1) generates candidate road arcs and geometric/temporal features, (2) scores candidates with a trained classifier, and (3) decodes a road-arc sequence using network-aware HMM/Viterbi transitions. The decoder applies a reversal penalty of 5.0 to discourage unrealistic back-and-forth transitions.
 
-The system follows a two-stage pipeline:
+The application has a Python/FastAPI backend and React/Vite/Leaflet frontend. Both run on the same laptop by default. The official hackathon guide describes a two-laptop architecture; that deployment has not been verified.
 
-1. **Candidate Classification:** Generates nearby road-segment candidates for each GPS observation and assigns probabilities using a trained machine learning classifier.
-2. **HMM and Viterbi Decoding:** Uses road-network connectivity and candidate probabilities to reconstruct a coherent sequence of road segments.
+## Repository layout
 
-## 2. Technology Stack
+- `src/features/` — raw trip reading, candidate generation, feature engineering.
+- `src/hmm/` — road graph and Viterbi decoder.
+- `src/api/` — model loading, prediction pipeline, FastAPI endpoints.
+- `src/models/` — deployed model (`best_model.joblib`, tracked with Git LFS) and feature metadata.
+- `scripts/` — preprocessing, model training, Bayesian tuning, evaluation, and route visualization.
+- `experiments/` — model experiments, out-of-fold predictions, comparisons, and result tables.
+- `reports/` — exploratory analysis, preprocessing summaries, Folium maps, and plots.
+- `tests/` — Python automated tests.
+- `ui/` — React evaluator interface.
+- `configs/` — configuration and split definitions.
 
-- **Backend:** Python, FastAPI
-- **Frontend:** React, Vite
-- **Machine Learning:** scikit-learn, NumPy, Pandas
-- **Route Decoding:** NetworkX, HMM, Viterbi
-- **Geospatial Processing:** Shapely, PyProj
-- **Model Storage:** Joblib
-- **Map Visualization:** Leaflet, React Leaflet
-- **Data Storage:** Parquet
+## Requirements and installation
 
-## 3. Project Structure
+Install Python, Node.js/npm, and Git LFS. From the repository root in PowerShell:
 
-```text
-PathSnap/
-├── configs/             # Shared configuration and data splits
-├── data/                # Processed datasets
-├── experiments/         # Experiment and connectivity results
-├── reports/             # EDA and preprocessing reports
-├── scripts/             # Preprocessing scripts
-├── src/
-│   ├── api/             # FastAPI backend and prediction pipeline
-│   ├── features/        # Candidate generation and features
-│   ├── hmm/             # Road graph and Viterbi decoder
-│   └── models/          # Trained model artifacts
-├── tests/               # Unit tests
-├── ui/                  # React frontend
-├── CONTRACTS.md
-├── PROJECT_PLAN.md
-├── README.md
-└── requirements.txt
-```
-
-## 4. Setup and Installation
-
-### Backend
-
-Python 3.12 or a compatible Python version is recommended.
-
-From the project root:
-
-```cmd
+```powershell
+git lfs install
+git lfs pull
 python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### Frontend
-
-Open a separate terminal:
-
-```cmd
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 cd ui
 npm install
+cd ..
 ```
 
-## 5. Dataset Configuration
+The deployed model is stored via Git LFS. Verify that `src/models/best_model.joblib` contains the actual model, not just a text pointer.
 
-The backend dataset location is configured in:
+## Dataset layout
 
-`src/api/config.py`
-
-Update `DATASET_ROOT` to the local directory containing the dataset.
-
-Expected structure:
+The API reads data from the project-relative `data/raw/Student folder/` directory, configured in `src/api/config.py`:
 
 ```text
-Dataset/
-├── train/
-│   └── <trip_id>/
-│       ├── <trip_id>.track
-│       ├── <trip_id>.nodes
-│       ├── <trip_id>.arcs
-│       └── <trip_id>.route
-├── student_test/
-│   └── <trip_id>/
-│       ├── <trip_id>.track
-│       ├── <trip_id>.nodes
-│       ├── <trip_id>.arcs
-│       └── <trip_id>.route
-└── evaluator/
+data/raw/Student folder/
+  train/<trip_id>/<trip_id>.track, .nodes, .arcs, .route
+  student_test/<trip_id>/<trip_id>.track, .nodes, .arcs, .route
+  evaluator/<trip_id>/<trip_id>.track, .nodes, .arcs, .route
 ```
 
-Raw datasets and evaluator data must remain local and must not be committed to GitHub.
+The `.track` file stores longitude, latitude and timestamp; `.nodes` stores road-node coordinates; `.arcs` stores directed node connections; `.route` contains ordered reference arc IDs. Reference routes are not verified per-GPS-point labels. Raw evaluator data and credentials must not be committed.
 
-The evaluator dataset is maintained exclusively by Person 4 and must only be used for final deployment evaluation.
+## Run locally
 
-## 6. Running the Application
+Open two terminals on the **same laptop**.
 
-### Start the Backend
+Backend, from the project root:
 
-From the project root, with the virtual environment activated:
-
-```cmd
-uvicorn src.api.main:app --reload
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Backend address:
+Frontend, from the project root:
 
-`http://127.0.0.1:8000`
-
-API documentation:
-
-`http://127.0.0.1:8000/docs`
-
-### Start the Frontend
-
-Open another terminal:
-
-```cmd
+```powershell
 cd ui
 npm run dev
 ```
 
-Frontend address:
+Open http://localhost:5173. The Vite proxy sends `/api` requests to `http://127.0.0.1:8000` by default. FastAPI documentation is at http://127.0.0.1:8000/docs.
 
-`http://localhost:5173`
+## API
 
-The frontend communicates with the backend through the configured Vite proxy.
-
-## 7. API Endpoints
-
-| Method | Endpoint | Purpose |
+| Method | Endpoint | Description |
 |---|---|---|
 | GET | `/` | API information |
-| GET | `/health` | Health check |
-| GET | `/trips` | Lists evaluator trips when the evaluator dataset is configured |
-| GET | `/dev/trips` | Lists student-testing trips |
-| POST | `/predict` | Requests route prediction |
+| GET | `/health` | Health status |
+| GET | `/dev/trips` | List student-test trips |
+| GET | `/trips` | List evaluator trips (requires ten locally available evaluator trips) |
+| POST | `/predict` | Predict route for a student-test trip |
+| POST | `/evaluate` | Predict and evaluate an evaluator trip |
 
-Example prediction request:
+POST payload example:
 
 ```json
-{
-  "trip_id": "00000000"
-}
+{"trip_id": "00000030"}
 ```
 
-The prediction response includes trip information, GPS observations, prediction status and, when available, predicted arc IDs.
+Responses include predicted arc IDs, GPS points, and route geometry. `/evaluate` additionally returns route precision/recall/F1, ordered route precision/recall/F1, and connectivity rate. The UI displays the GPS trace and predicted road route. Per-GPS-point accuracy is returned as `null` because verified per-observation reference labels are unavailable. Evaluation metrics are computed server-side; the reference arc sequence is not sent to the UI.
 
-Ground-truth information must remain server-side and must never be exposed to the frontend.
+## Model experimentation and results
 
-## 8. Testing
+Five candidate-level classifiers were trained and compared using a trip-separated 64-trip training / 16-trip validation split:
 
-Run backend tests from the project root:
+| Model | Validation Top-1 | Validation ROC-AUC |
+|---|---:|---:|
+| Logistic Regression | 68.64% | 0.9071 |
+| Gaussian Naive Bayes | 70.98% | 0.9113 |
+| HistGradientBoosting | 72.92% | 0.9569 |
+| RandomForest | **74.28%** | 0.9555 |
+| XGBoost | 72.32% | 0.9548 |
 
-```cmd
-pytest -q
+The deployed RandomForest was subsequently refitted using sampled candidates from all 80 training trips. The validation scores above belong to the earlier trip-separated experiment, **not** to an untouched test of the refitted artifact.
+
+Bayesian optimization used Optuna TPE. On its comparison protocol, baseline RandomForest Top-1 was 73.36% and tuned Top-1 was 73.44%; the tuned configuration had slightly worse macro F1 and log loss, so the baseline configuration was retained.
+
+The HMM/Viterbi reversal penalty was assessed in a separate 16-trip validation ablation. A penalty of 5.0 improved ordered-route F1 and reduced reversals relative to a zero-penalty decoder.
+
+On ten evaluator trips, the recorded post-development diagnostics were:
+
+| Metric | Mean |
+|---|---:|
+| Route F1 (unique directed arc sets) | 95.24% |
+| Ordered route F1 (sequence-sensitive) | 93.95% |
+| Connectivity rate (macro) | 99.72% |
+
+These evaluator results are **post-development diagnostics, not an independent untouched test**, because evaluator observations informed the reversal-penalty improvement. Route F1 is not GPS-point accuracy.
+
+Reproducible experiment summaries are under `experiments/results/`, including `adaptive_model_comparison.csv`, `bayesian_comparison.csv`, `reversal_validation_summary.csv`, and `evaluator_summary.csv`.
+
+## Reproduction and verification
+
+Key scripts:
+
+```powershell
+python scripts/run_preprocessing.py
+python scripts/train_models.py
+python scripts/train_final_model.py
+python scripts/tune_random_forest.py
+python scripts/validate_reversal_penalty.py
+python scripts/evaluate_evaluator.py
 ```
 
-Build the frontend:
+Check each script's input requirements and CLI options before rerunning expensive experiments. Training/evaluation datasets are required locally.
 
-```cmd
+Tests and frontend checks:
+
+```powershell
+python -m pytest -q
 cd ui
+npm run lint
 npm run build
 ```
 
-## 9. Development Rules
+The latest reported checks passed: 20 Python tests and frontend lint/build.
 
-- Each team member works on an assigned Git branch.
-- Changes to `main` are submitted through pull requests.
-- The shared random seed is 42 wherever applicable.
-- Model interfaces must follow the scikit-learn `predict_proba(X)` convention.
-- Candidate generation must use the shared `build_candidates()` function.
-- The HMM decoder must follow `decode(candidates_df, probs, road_graph)`.
-- Evaluator data, credentials and secrets must never be committed.
-- Results must be reproducible.
+## Visualizations and submission
 
-Refer to [CONTRACTS.md](CONTRACTS.md) for the complete shared interfaces and development rules.
+`reports/preprocessing/` contains EDA summaries and Folium map HTML outputs; `reports/figures/` contains existing model comparison plots. `scripts/visualize_prediction.py` supports prediction visualization. The final technical report should distinguish training, validation, student-test and evaluator partitions, include missing-value analysis, model comparison, Bayesian tuning, route decoding, geographical figures, and limitations. The official submission calls for a public GitHub repository and one consolidated PDF report.
 
-## 10. Team
+## Limitations and data handling
 
-PathSnap is developed collaboratively by a four-member team as a machine learning project.
+- A reference `.route` is an ordered sequence of road arcs, not verified per-observation labels.
+- Candidate-level Top-1, route-level F1, and sequence-level F1 measure different outcomes and must not be conflated.
+- Evaluator data stays local and must not be committed.
+- Single-device integration is confirmed; two-laptop deployment is not verified.
+- Do not commit secrets or private credentials.
+
+See `CONTRACTS.md`, `PROJECT_PLAN.md`, and `reports/preprocessing/README.md` for additional project details.
