@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-11-18T15:07:54",
+  "seed": 42,
+  "threshold": 0.5,
+  "cv_folds": 5,
+  "feature_cols": [
+    "dist_m",
+    "bearing_diff",
+    "speed"
+  ],
+  "n_train_trips": 24,
+  "n_student_trips": 6,
+  "python": "3.13.7",
+  "sklearn": "1.9.1",
+  "candidates_file": "C:\\Users\\SROTAS~1\\AppData\\Local\\Temp\\tmppny_tbvk\\cand.parquet",
+  "student_candidates_file": "None",
+  "models_run": [
+    "logreg",
+    "gaussian_nb",
+    "hist_gb",
+    "random_forest",
+    "xgboost"
+  ],
+  "smoke": true
+}
