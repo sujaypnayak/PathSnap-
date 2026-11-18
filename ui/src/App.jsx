@@ -12,34 +12,41 @@ import {
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 
-function FitMap({ points }) {
+function FitMap({ points, routeGeometry }) {
   const map = useMap();
 
   useEffect(() => {
-    if (points.length > 0) {
-      map.fitBounds(points.map((point) => [point.lat, point.lng]), {
-        padding: [30, 30],
-      });
+    const bounds = [
+      ...points.map((point) => [point.lat, point.lng]),
+      ...(routeGeometry || []),
+    ];
+
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [30, 30] });
     }
-  }, [points, map]);
+  }, [points, routeGeometry, map]);
 
   return null;
 }
 
-function GPSMap({ points }) {
+function GPSMap({ points, routeGeometry }) {
   if (!points || points.length === 0) {
     return <p className="notice">No GPS coordinates available.</p>;
   }
 
-  const positions = points.map((point) => [
+  const gpsPositions = points.map((point) => [
     point.lat,
     point.lng,
   ]);
 
+  const predictedPositions = (routeGeometry || []).map(
+    (point) => [point[0], point[1]]
+  );
+
   return (
     <div className="map-wrapper">
       <MapContainer
-        center={positions[0]}
+        center={gpsPositions[0]}
         zoom={13}
         scrollWheelZoom={true}
         style={{ height: "450px", width: "100%" }}
@@ -49,19 +56,33 @@ function GPSMap({ points }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <FitMap points={points} />
+        <FitMap
+          points={points}
+          routeGeometry={predictedPositions}
+        />
 
         <Polyline
-          positions={positions}
+          positions={gpsPositions}
           pathOptions={{
             color: "#38bdf8",
-            weight: 5,
-            opacity: 0.9,
+            weight: 4,
+            opacity: 0.8,
           }}
         />
 
+        {predictedPositions.length > 0 && (
+          <Polyline
+            positions={predictedPositions}
+            pathOptions={{
+              color: "#f97316",
+              weight: 6,
+              opacity: 0.95,
+            }}
+          />
+        )}
+
         <CircleMarker
-          center={positions[0]}
+          center={gpsPositions[0]}
           radius={7}
           pathOptions={{
             color: "#22c55e",
@@ -73,7 +94,7 @@ function GPSMap({ points }) {
         </CircleMarker>
 
         <CircleMarker
-          center={positions[positions.length - 1]}
+          center={gpsPositions[gpsPositions.length - 1]}
           radius={7}
           pathOptions={{
             color: "#ef4444",
@@ -84,6 +105,17 @@ function GPSMap({ points }) {
           <Popup>Ending GPS point</Popup>
         </CircleMarker>
       </MapContainer>
+
+      <div className="map-legend">
+        <span>Blue: Original GPS track</span>
+        <span>Orange: Predicted road route</span>
+      </div>
+
+      {predictedPositions.length === 0 && (
+        <p className="notice">
+          Predicted route will appear when a trained model is available.
+        </p>
+      )}
     </div>
   );
 }
@@ -220,11 +252,14 @@ function App() {
             </section>
 
             <section className="panel">
-              <h2>GPS Track Visualization</h2>
+              <h2>Route Visualization</h2>
               <p>
-                Original GPS observations plotted on the map.
+                Compare the original GPS observations with the predicted road route.
               </p>
-              <GPSMap points={result.gps_points} />
+              <GPSMap
+                points={result.gps_points}
+                routeGeometry={result.route_geometry}
+              />
             </section>
           </>
         )}

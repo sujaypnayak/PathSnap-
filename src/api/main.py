@@ -168,7 +168,7 @@ def predict(request: PredictRequest):
         "message": "Route prediction completed successfully.",
         "predicted_arc_ids": result["predicted_arc_ids"],
         "gps_points": gps_points,
-        "route_geometry": None,
+        "route_geometry": result["route_geometry"],
         "accuracy": None,
         "candidate_count": result["candidate_count"],
         "observation_count": result["observation_count"],
