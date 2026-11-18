@@ -10,8 +10,8 @@ from src.api.config import (
     API_TITLE,
     API_VERSION,
 )
-
 from src.api.logger import log_prediction_request
+from src.api.prediction import predict_trip
 
 
 app = FastAPI(
@@ -125,7 +125,8 @@ def predict(request: PredictRequest):
             detail="Trip ID must contain only digits.",
         )
 
-    trip_file = STUDENT_TEST_DIR / trip_id / f"{trip_id}.track"
+    trip_path = STUDENT_TEST_DIR / trip_id
+    trip_file = trip_path / f"{trip_id}.track"
 
     if not trip_file.is_file():
         log_prediction_request(trip_id, "not_found")
@@ -136,14 +137,39 @@ def predict(request: PredictRequest):
 
     gps_points = load_gps_points(trip_file)
 
-    log_prediction_request(trip_id, "gps_loaded_mock_prediction")
+    try:
+        result = predict_trip(trip_path)
+
+    except RuntimeError as error:
+        log_prediction_request(trip_id, "model_pending")
+
+        return {
+            "trip_id": trip_id,
+            "status": "model_pending",
+            "message": str(error),
+            "predicted_arc_ids": [],
+            "gps_points": gps_points,
+            "route_geometry": None,
+            "accuracy": None,
+        }
+
+    except Exception as error:
+        log_prediction_request(trip_id, "prediction_failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Prediction failed: {error}",
+        )
+
+    log_prediction_request(trip_id, "prediction_completed")
 
     return {
         "trip_id": trip_id,
-        "status": "mock",
-        "message": "GPS data loaded successfully. ML prediction pipeline is not integrated yet.",
-        "predicted_arc_ids": [],
+        "status": "success",
+        "message": "Route prediction completed successfully.",
+        "predicted_arc_ids": result["predicted_arc_ids"],
         "gps_points": gps_points,
         "route_geometry": None,
         "accuracy": None,
+        "candidate_count": result["candidate_count"],
+        "observation_count": result["observation_count"],
     }
