@@ -26,8 +26,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from features.candidates import FEATURE_COLUMNS, build_candidates, prepare_trip, miss_rates
 
-DATA_ROOT = ROOT / "miscallaneous" / "student folder" / "Student folder" / "Student folder"
-OUT = ROOT / "preprocessing"
+DATA_ROOT = ROOT / "data" / "raw" / "Student folder"
+DATA_OUT = ROOT / "data" / "processed"
+REPORT_OUT = ROOT / "reports" / "preprocessing"
 RADIUS_M = 50.0
 
 
@@ -190,31 +191,35 @@ def _write_partition(paths: list[Path], output: Path, partition: str,
 
 
 def run(pilot: int = 0, maps_only: bool = False) -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
+    DATA_OUT.mkdir(parents=True, exist_ok=True)
+    REPORT_OUT.mkdir(parents=True, exist_ok=True)
     train = sorted((DATA_ROOT / "train").iterdir())
     student = sorted((DATA_ROOT / "student_test").iterdir())
     if len(train) != 80 or len(student) != 10:
         raise RuntimeError(f"Expected 80 train and 10 student_test trips; found {len(train)} and {len(student)}")
     if maps_only:
-        _write_map(train[0], OUT / "sample_train_map.html")
-        _write_map(student[0], OUT / "sample_student_test_map.html", include_reference_route=False)
+        _write_map(train[0], REPORT_OUT / "sample_train_map.html")
+        _write_map(student[0], REPORT_OUT / "sample_student_test_map.html", include_reference_route=False)
         def data_rows(path: Path) -> int:
+            if PARQUET_AVAILABLE:
+                return pq.ParquetFile(path).metadata.num_rows
             with path.open("rb") as stream:
                 return max(0, sum(1 for _ in stream) - 1)
-        train_csv, student_csv = OUT / "train_candidates.csv", OUT / "student_test_candidates.csv"
+        train_file = DATA_OUT / ("train_candidates.parquet" if PARQUET_AVAILABLE else "train_candidates.csv")
+        student_file = DATA_OUT / ("student_test_candidates.parquet" if PARQUET_AVAILABLE else "student_test_candidates.csv")
         summary = {
-            "train_trips": 80, "train_candidate_rows": data_rows(train_csv),
-            "student_test_trips": 10, "student_test_candidate_rows": data_rows(student_csv),
+            "train_trips": 80, "train_candidate_rows": data_rows(train_file),
+            "student_test_trips": 10, "student_test_candidate_rows": data_rows(student_file),
             "radius_m": RADIUS_M, "feature_columns": FEATURE_COLUMNS, "random_seed": 42,
             "source_partitions": {"train": "train/ (80 trips)", "student_test": "student_test/ (10 trips)"},
             "evaluator_data_accessed": False, "parquet_available": PARQUET_AVAILABLE,
         }
         if not PARQUET_AVAILABLE:
             summary["parquet_error"] = PARQUET_IMPORT_ERROR
-        (OUT / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        (REPORT_OUT / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         print(json.dumps(summary, indent=2), flush=True)
         return
-    (OUT / "feature_config.json").write_text(json.dumps({
+    (REPORT_OUT / "feature_config.json").write_text(json.dumps({
         "feature_columns": FEATURE_COLUMNS,
         "schema": ["trip_id", "obs_idx", "arc_id", *FEATURE_COLUMNS, "label"],
         "search_radius_m": RADIUS_M,
@@ -224,28 +229,28 @@ def run(pilot: int = 0, maps_only: bool = False) -> None:
     }, indent=2), encoding="utf-8")
     if pilot:
         pilot_rows: list[dict] = []; pilot_eda: list[dict] = []
-        pilot_path = OUT / ("pilot_train_candidates.parquet" if PARQUET_AVAILABLE else "pilot_train_candidates.csv")
+        pilot_path = DATA_OUT / ("pilot_train_candidates.parquet" if PARQUET_AVAILABLE else "pilot_train_candidates.csv")
         _write_partition(train[:pilot], pilot_path, "pilot", pilot_rows, pilot_eda, RADIUS_M)
-        pd.DataFrame(pilot_eda).to_csv(OUT / "pilot_eda_summary.csv", index=False)
-        pd.DataFrame(pilot_rows).to_csv(OUT / "pilot_candidate_miss_rates.csv", index=False)
+        pd.DataFrame(pilot_eda).to_csv(REPORT_OUT / "pilot_eda_summary.csv", index=False)
+        pd.DataFrame(pilot_rows).to_csv(REPORT_OUT / "pilot_candidate_miss_rates.csv", index=False)
         print(f"Pilot complete: {pilot} trips; {pilot_path}", flush=True)
         if pilot < len(train):
             return
     eda_rows: list[dict] = []; miss_rows: list[dict] = []
-    train_path = OUT / ("train_candidates.parquet" if PARQUET_AVAILABLE else "train_candidates.csv")
-    student_path = OUT / ("student_test_candidates.parquet" if PARQUET_AVAILABLE else "student_test_candidates.csv")
+    train_path = DATA_OUT / ("train_candidates.parquet" if PARQUET_AVAILABLE else "train_candidates.csv")
+    student_path = DATA_OUT / ("student_test_candidates.parquet" if PARQUET_AVAILABLE else "student_test_candidates.csv")
     nt, nr = _write_partition(train, train_path, "train", miss_rows, eda_rows, RADIUS_M)
     ns, nsr = _write_partition(student, student_path, "student_test", miss_rows, eda_rows, RADIUS_M)
-    pd.DataFrame(eda_rows).to_csv(OUT / "eda_summary.csv", index=False)
+    pd.DataFrame(eda_rows).to_csv(REPORT_OUT / "eda_summary.csv", index=False)
     miss = pd.DataFrame(miss_rows)
     totals = miss.groupby("search_radius_m", as_index=False).agg(
         n_observations=("n_observations", "sum"), candidate_misses=("candidate_misses", "sum"))
     totals["trip_id"] = "__ALL_TRAIN__"
     totals["partition"] = "train_only"
     totals["candidate_miss_rate"] = totals.candidate_misses / totals.n_observations
-    pd.concat([miss, totals], ignore_index=True).to_csv(OUT / "candidate_miss_rates.csv", index=False)
-    _write_map(train[0], OUT / "sample_train_map.html")
-    _write_map(student[0], OUT / "sample_student_test_map.html", include_reference_route=False)
+    pd.concat([miss, totals], ignore_index=True).to_csv(REPORT_OUT / "candidate_miss_rates.csv", index=False)
+    _write_map(train[0], REPORT_OUT / "sample_train_map.html")
+    _write_map(student[0], REPORT_OUT / "sample_student_test_map.html", include_reference_route=False)
     summary = {
         "train_trips": nt, "train_candidate_rows": nr,
         "student_test_trips": ns, "student_test_candidate_rows": nsr,
@@ -257,7 +262,7 @@ def run(pilot: int = 0, maps_only: bool = False) -> None:
     }
     if not PARQUET_AVAILABLE:
         summary["parquet_error"] = PARQUET_IMPORT_ERROR
-    (OUT / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    (REPORT_OUT / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2), flush=True)
 
 
