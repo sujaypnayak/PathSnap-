@@ -88,11 +88,21 @@ Miss rate here means the assigned reference-route distance exceeds the search ra
 | 100 m | 9.85% |
 | 150 m | 4.46% |
 
-Trips 00000033 and 00000054 have high miss rates at 50 m. Trip 00000054 has aligned GPS and route bounds and connected route arcs, but large distance errors occur along parts of the trip. The exact cause is not confirmed. The 50 m default is retained pending candidate-count and processing-time benchmarks.
+Trips 00000033 and 00000054 have high miss rates at 50 m. Trip 00000054 has aligned GPS and route bounds and connected route arcs, but large distance errors occur along parts of the trip. The exact cause is not confirmed. The 50 m default is retained based on the completed one-trip candidate-count and processing-time comparison
 
 ## Radius benchmark
 
-A benchmark on the first 5 training trips produced 132,095 candidate rows at 50 m in 36.20 seconds. The 150 m benchmark was interrupted before completion, so no timing or row-count comparison is claimed. The default remains 50 m; a complete larger-radius benchmark is still pending.
+### Completed one-trip comparison
 
+A completed benchmark on one training trip compared both search radii:
 
-A separate completed benchmark on one training trip compared both radii: 50 m produced 15,964 candidates in 5.01 seconds; 150 m produced 86,999 candidates in 21.94 seconds. The larger radius produced about 5.45 times as many candidates and took about 4.4 times longer. The earlier five-trip 150 m benchmark was interrupted, so these one-trip results are reported separately.
+| Search radius | Candidate rows | Processing time |
+|---|---:|---:|
+| 50 m | 15,964 | 5.01 seconds |
+| 150 m | 86,999 | 21.94 seconds |
+
+The 150 m radius generated approximately 5.45 times as many candidates and took approximately 4.4 times longer than the 50 m radius. The 50 m radius remains the default.
+
+### Interrupted five-trip benchmark
+
+A separate benchmark on the first five training trips generated 132,095 candidate rows at 50 m in 36.20 seconds. The 150 m run was interrupted before completion. Therefore, no completed five-trip comparison is available, and no 150 m timing or row count is reported for that experiment.
