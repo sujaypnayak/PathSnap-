@@ -1,6 +1,9 @@
 
+"""PathSnap FastAPI endpoints."""
+
 from pathlib import Path
 
+import numpy as np
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
@@ -12,6 +15,13 @@ from src.api.config import (
 )
 from src.api.logger import log_prediction_request
 from src.api.prediction import predict_trip
+from src.features.candidates import read_trip
+
+# Reuse the exact definitions used for batch evaluation.
+from scripts.evaluate_evaluator import (
+    calculate_metrics,
+    connectivity,
+)
 
 
 app = FastAPI(
@@ -63,6 +73,114 @@ def load_gps_points(track_file: Path):
         )
 
     return gps_points
+
+
+def run_prediction(trip_id, dataset_dir, evaluate=False):
+    """Run prediction and optionally score against a reference route."""
+
+    trip_path = dataset_dir / trip_id
+    track_file = trip_path / f"{trip_id}.track"
+
+    if not track_file.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Trip not found in the requested dataset.",
+        )
+
+    gps_points = load_gps_points(track_file)
+
+    try:
+        # Inference does not use reference-route labels.
+        prediction = predict_trip(trip_path)
+
+    except RuntimeError as error:
+        return {
+            "trip_id": trip_id,
+            "status": "model_pending",
+            "message": str(error),
+            "predicted_arc_ids": [],
+            "gps_points": gps_points,
+            "route_geometry": None,
+            "accuracy": None,
+            "route_f1": None,
+            "ordered_route_f1": None,
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Prediction failed: {error}",
+        )
+
+    response = {
+        "trip_id": trip_id,
+        "status": "success",
+        "message": "Route prediction completed successfully.",
+        "predicted_arc_ids": prediction["predicted_arc_ids"],
+        "gps_points": gps_points,
+        "route_geometry": prediction["route_geometry"],
+        "accuracy": None,
+        "route_f1": None,
+        "ordered_route_f1": None,
+        "candidate_count": prediction["candidate_count"],
+        "observation_count": prediction["observation_count"],
+    }
+
+    if evaluate:
+        try:
+            trip = read_trip(
+                trip_path,
+                include_reference_route=True,
+            )
+
+            reference = trip["route"]
+            arcs = trip["arcs"]
+
+            if reference is None or len(reference) == 0:
+                raise ValueError("Reference route is empty.")
+
+            if np.any(reference < 0) or np.any(
+                reference >= len(arcs)
+            ):
+                raise ValueError(
+                    "Reference route contains invalid arc IDs."
+                )
+
+            metrics = calculate_metrics(
+                prediction["predicted_arc_ids"],
+                reference,
+            )
+
+            connection_metrics = connectivity(
+                prediction["predicted_arc_ids"],
+                arcs,
+            )
+
+            response.update({
+                "route_precision": metrics["route_precision"],
+                "route_recall": metrics["route_recall"],
+                "route_f1": metrics["route_f1"],
+                "ordered_route_precision": metrics["ordered_precision"],
+                "ordered_route_recall": metrics["ordered_recall"],
+                "ordered_route_f1": metrics["ordered_f1"],
+                "connectivity_rate": connection_metrics[
+                    "connectivity_rate"
+                ],
+                "metric_type": "route_level",
+                "evaluation_note": (
+                    "Reference routes contain ordered road arcs, "
+                    "not verified per-GPS-point ground-truth labels. "
+                    "GPS-point accuracy is unavailable."
+                ),
+            })
+
+        except Exception as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Route evaluation failed: {error}",
+            )
+
+    return response
 
 
 @app.get("/")
@@ -125,51 +243,34 @@ def predict(request: PredictRequest):
             detail="Trip ID must contain only digits.",
         )
 
-    trip_path = STUDENT_TEST_DIR / trip_id
-    trip_file = trip_path / f"{trip_id}.track"
+    result = run_prediction(
+        trip_id,
+        STUDENT_TEST_DIR,
+        evaluate=False,
+    )
 
-    if not trip_file.is_file():
-        log_prediction_request(trip_id, "not_found")
+    log_prediction_request(
+        trip_id,
+        "prediction_completed"
+        if result["status"] == "success"
+        else "model_pending",
+    )
+
+    return result
+
+
+@app.post("/evaluate")
+def evaluate(request: PredictRequest):
+    trip_id = request.trip_id
+
+    if not trip_id.isdigit():
         raise HTTPException(
-            status_code=404,
-            detail="Trip not found in the student testing dataset.",
+            status_code=400,
+            detail="Trip ID must contain only digits.",
         )
 
-    gps_points = load_gps_points(trip_file)
-
-    try:
-        result = predict_trip(trip_path)
-
-    except RuntimeError as error:
-        log_prediction_request(trip_id, "model_pending")
-
-        return {
-            "trip_id": trip_id,
-            "status": "model_pending",
-            "message": str(error),
-            "predicted_arc_ids": [],
-            "gps_points": gps_points,
-            "route_geometry": None,
-            "accuracy": None,
-        }
-
-    except Exception as error:
-        log_prediction_request(trip_id, "prediction_failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Prediction failed: {error}",
-        )
-
-    log_prediction_request(trip_id, "prediction_completed")
-
-    return {
-        "trip_id": trip_id,
-        "status": "success",
-        "message": "Route prediction completed successfully.",
-        "predicted_arc_ids": result["predicted_arc_ids"],
-        "gps_points": gps_points,
-        "route_geometry": result["route_geometry"],
-        "accuracy": None,
-        "candidate_count": result["candidate_count"],
-        "observation_count": result["observation_count"],
-    }
+    return run_prediction(
+        trip_id,
+        EVALUATOR_DATA_DIR,
+        evaluate=True,
+    )
