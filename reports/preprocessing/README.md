@@ -55,3 +55,41 @@ Both modes use the same metric projection, spatial index, candidate search and f
 - Training candidate miss rates are evaluated against assigned reference arcs at 25, 50, 75, 100 and 150 m.
 
 The completed run generated 1,885,382 training candidate rows and 209,121 student-test candidate rows, using a 50 m radius. The run summary records `evaluator_data_accessed: false`.
+
+## Feature definitions (15 features)
+
+- distance_m: GPS-to-road distance.
+- gps_bearing_deg: GPS movement direction.
+- road_bearing_deg: Candidate road direction.
+- bearing_diff_deg: Difference between GPS and road direction.
+- vehicle_speed_mps: Estimated movement speed in m/s.
+- time_diff_s: Time since previous observation.
+- stopped_flag: 1 when speed is below 1 m/s.
+- prev_obs_distance_m: Candidate road distance to previous GPS observation.
+- next_obs_distance_m: Candidate road distance to next GPS observation.
+- prev_time_diff_s: Time since previous observation; currently same as time_diff_s.
+- next_time_diff_s: Time to next observation.
+- prev_bearing_deg: Previous GPS movement direction.
+- next_bearing_deg: Next GPS movement direction.
+- segment_length_m: Candidate road segment length.
+- candidate_within_radius: 1 if candidate is within 50 m.
+
+Unavailable feature values are zero-filled.
+
+## Candidate miss-rate investigation
+
+Miss rate here means the assigned reference-route distance exceeds the search radius. It does not mean that no candidate was generated, because the nearest-road fallback still supplies one.
+
+| Radius | Reference-route distance beyond radius |
+|---|---:|
+| 25 m | 13.22% |
+| 50 m | 11.17% |
+| 75 m | 10.26% |
+| 100 m | 9.85% |
+| 150 m | 4.46% |
+
+Trips 00000033 and 00000054 have high miss rates at 50 m. Trip 00000054 has aligned GPS and route bounds and connected route arcs, but large distance errors occur along parts of the trip. The exact cause is not confirmed. The 50 m default is retained pending candidate-count and processing-time benchmarks.
+
+## Radius benchmark
+
+A benchmark on the first 5 training trips produced 132,095 candidate rows at 50 m in 36.20 seconds. The 150 m benchmark was interrupted before completion, so no timing or row-count comparison is claimed. The default remains 50 m; a complete larger-radius benchmark is still pending.
