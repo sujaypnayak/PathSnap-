@@ -1,0 +1,6 @@
+
+seed: 42
+
+crs: "EPSG:32638"
+
+feature_cols: []
