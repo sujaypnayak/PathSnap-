@@ -80,11 +80,11 @@ Unavailable feature values are zero-filled.
 
 Candidate miss rate measures the percentage of observations for which the assigned reference-route arc is absent from the generated candidates within the specified search radius. The nearest-arc fallback is applied when no candidate is found within the radius.
 
-| Radius | Reference-route distance beyond radius |
+| Search radius | Candidate miss rate |
 |---|---:|
-| 25 m | 13.22% |
-| 50 m | 11.17% |
-| 75 m | 10.26% |
+| 25 m | 12.39% |
+| 50 m | 10.94% |
+| 75 m | 10.18% |
 | 100 m | 9.85% |
 | 150 m | 4.46% |
 
