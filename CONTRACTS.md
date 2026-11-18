@@ -170,9 +170,9 @@ Raw longitude and latitude values must not be used directly for distance calcula
 
 The initial shared configuration is:
 
-`EPSG:32638`
+`local_utm_by_trip_median_location` (WGS84 to the appropriate UTM zone inferred from each trip median GPS location)
 
-Person 1 must confirm the appropriate CRS during exploratory data analysis (EDA).
+Each trip must use its own appropriate UTM zone, inferred from the median GPS location during preprocessing.
 
 The selected CRS must be consistent across feature generation, model training, HMM processing and API inference.
 
