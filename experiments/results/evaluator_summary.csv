@@ -1,0 +1,2 @@
+trips_total,trips_successful,trips_failed,total_gps_observations,total_runtime_seconds,macro_route_precision,macro_route_recall,macro_route_f1,macro_ordered_precision,macro_ordered_recall,macro_ordered_f1,macro_connectivity_rate,micro_connectivity_rate
+10,10,0,19674,96.13,0.9592130406041323,0.9524303155117086,0.9523779075411974,0.9457984655124217,0.9462780530261373,0.9395048543302273,0.99716618911512,0.9985760781122864

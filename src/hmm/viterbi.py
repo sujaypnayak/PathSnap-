@@ -7,6 +7,7 @@ import numpy as np
 DISCONNECTED_PENALTY = -20.0
 DEFAULT_EMISSION_WEIGHT = 1.0
 DEFAULT_TRANSITION_WEIGHT = 1.0
+DEFAULT_REVERSAL_PENALTY = 0.0
 
 
 def decode(
@@ -16,30 +17,9 @@ def decode(
     disconnected_penalty=DISCONNECTED_PENALTY,
     emission_weight=DEFAULT_EMISSION_WEIGHT,
     transition_weight=DEFAULT_TRANSITION_WEIGHT,
+    reversal_penalty=DEFAULT_REVERSAL_PENALTY,
 ):
-    """
-    Find the most likely sequence of road segments.
-
-    Parameters
-    ----------
-    candidates_df : pandas.DataFrame
-        Must contain obs_idx and arc_id.
-    probs : array-like
-        One emission probability per candidate row.
-    road_graph : networkx.DiGraph
-        Directed graph whose nodes represent road arcs.
-    disconnected_penalty : float
-        Log-score penalty for disconnected transitions.
-    emission_weight : float
-        Weight applied to log emission probabilities.
-    transition_weight : float
-        Weight applied to log transition scores.
-
-    Returns
-    -------
-    list
-        Most likely sequence of road arc IDs.
-    """
+    """Find the most likely sequence of directed road arcs."""
 
     required_columns = {"obs_idx", "arc_id"}
 
@@ -50,19 +30,32 @@ def decode(
 
     if "trip_id" in candidates_df.columns:
         if candidates_df["trip_id"].nunique() != 1:
-            raise ValueError("decode() expects candidates from one trip.")
+            raise ValueError(
+                "decode() expects candidates from one trip."
+            )
 
     if candidates_df.empty:
         raise ValueError("No candidate road segments were provided.")
 
     if not np.isfinite(disconnected_penalty) or disconnected_penalty > 0:
-        raise ValueError("disconnected_penalty must be finite and <= 0.")
+        raise ValueError(
+            "disconnected_penalty must be finite and <= 0."
+        )
 
     if not np.isfinite(emission_weight) or emission_weight < 0:
-        raise ValueError("emission_weight must be finite and >= 0.")
+        raise ValueError(
+            "emission_weight must be finite and >= 0."
+        )
 
     if not np.isfinite(transition_weight) or transition_weight < 0:
-        raise ValueError("transition_weight must be finite and >= 0.")
+        raise ValueError(
+            "transition_weight must be finite and >= 0."
+        )
+
+    if not np.isfinite(reversal_penalty) or reversal_penalty < 0:
+        raise ValueError(
+            "reversal_penalty must be finite and >= 0."
+        )
 
     probs = np.asarray(probs, dtype=float).reshape(-1)
 
@@ -87,7 +80,9 @@ def decode(
         arc_ids = group["arc_id"].tolist()
 
         if len(set(arc_ids)) != len(arc_ids):
-            raise ValueError("Duplicate arc_id within an observation.")
+            raise ValueError(
+                "Duplicate arc_id within an observation."
+            )
 
         positions = group["_original_position"].to_numpy()
         emissions = probs[positions]
@@ -105,7 +100,9 @@ def decode(
     min_probability = np.finfo(float).tiny
 
     first_arcs, first_emissions = observations[0]
-    first_emissions = np.maximum(first_emissions, min_probability)
+    first_emissions = np.maximum(
+        first_emissions, min_probability
+    )
     first_emissions /= first_emissions.sum()
 
     dp = (
@@ -126,29 +123,61 @@ def decode(
         log_emissions = np.log(current_emissions)
 
         next_dp = np.full(len(current_arcs), -np.inf)
-        backpointer = np.full(len(current_arcs), -1, dtype=int)
+        backpointer = np.full(
+            len(current_arcs), -1, dtype=int
+        )
 
         for j, current_arc in enumerate(current_arcs):
             best_score = -np.inf
             best_previous = -1
 
             for i, previous_arc in enumerate(previous_arcs):
-
                 connected = (
                     previous_arc == current_arc
-                    or road_graph.has_edge(previous_arc, current_arc)
+                    or road_graph.has_edge(
+                        previous_arc, current_arc
+                    )
                 )
 
                 if connected:
                     reachable = sum(
                         previous_arc == candidate
-                        or road_graph.has_edge(previous_arc, candidate)
+                        or road_graph.has_edge(
+                            previous_arc, candidate
+                        )
                         for candidate in current_arcs
                     )
 
-                    transition_score = -np.log(max(1, reachable))
+                    transition_score = -np.log(
+                        max(1, reachable)
+                    )
                 else:
                     transition_score = disconnected_penalty
+
+                # Reverse-direction arcs share the same
+                # road endpoints in opposite order.
+                if (
+                    reversal_penalty > 0
+                    and previous_arc != current_arc
+                ):
+                    previous_data = road_graph.nodes[
+                        previous_arc
+                    ]
+                    current_data = road_graph.nodes[
+                        current_arc
+                    ]
+
+                    if (
+                        "from_node" in previous_data
+                        and "to_node" in previous_data
+                        and "from_node" in current_data
+                        and "to_node" in current_data
+                        and previous_data["from_node"]
+                        == current_data["to_node"]
+                        and previous_data["to_node"]
+                        == current_data["from_node"]
+                    ):
+                        transition_score -= reversal_penalty
 
                 score = (
                     dp[i]
@@ -173,7 +202,9 @@ def decode(
         best_previous = backpointer[best_path[-1]]
 
         if best_previous == -1:
-            raise ValueError("Could not reconstruct a valid path.")
+            raise ValueError(
+                "Could not reconstruct a valid path."
+            )
 
         best_path.append(int(best_previous))
 

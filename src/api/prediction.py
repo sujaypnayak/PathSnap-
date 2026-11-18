@@ -188,10 +188,11 @@ def predict_trip(trip_path: str | Path):
     print("Running HMM/Viterbi decoding...", flush=True)
 
     predicted_arc_ids = decode(
-        candidates,
-        probs,
-        road_graph,
-    )
+    candidates,
+    probs,
+    road_graph,
+    reversal_penalty=5.0,
+)
 
     route_geometry = build_route_geometry(
         trip_path,
